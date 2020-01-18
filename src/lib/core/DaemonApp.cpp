@@ -155,7 +155,7 @@ DaemonApp::run(int argc, char** argv)
         if (foreground) {
             // run process in foreground instead of daemonizing.
             // useful for debugging.
-            mainLoop(false);
+            mainLoop(false, foreground);
         }
         else {
 #if SYSAPI_WIN32
@@ -192,7 +192,7 @@ DaemonApp::run(int argc, char** argv)
 }
 
 void
-DaemonApp::mainLoop(bool logToFile)
+DaemonApp::mainLoop(bool logToFile, bool foreground)
 {
     try
     {
@@ -215,7 +215,7 @@ DaemonApp::mainLoop(bool logToFile)
         CLOG->insert(m_ipcLogOutputter);
         
 #if SYSAPI_WIN32
-        m_watchdog = new MSWindowsWatchdog(false, *m_ipcServer, *m_ipcLogOutputter);
+        m_watchdog = new MSWindowsWatchdog(false, *m_ipcServer, *m_ipcLogOutputter, foreground);
         m_watchdog->setFileLogOutputter(m_fileLogOutputter);
 #endif
         
@@ -337,23 +337,6 @@ DaemonApp::handleIpcMessage(const Event& e, void*)
                         LOG((CLOG_ERR "failed to save LogLevel setting, %s", e.what()));
                     }
                 }
-
-#if SYSAPI_WIN32
-                String logFilename;
-                if (argBase->m_logFile != NULL) {
-                    logFilename = String(argBase->m_logFile);
-                    ARCH->setting("LogFilename", logFilename);
-                    m_watchdog->setFileLogOutputter(m_fileLogOutputter);
-                    command = ArgParser::assembleCommand(argsArray, "--log", 1);
-                    LOG((CLOG_DEBUG "removed log file argument and filename %s from command ", logFilename.c_str()));
-                    LOG((CLOG_DEBUG "new command, elevate=%d command=%s", cm->elevate(), command.c_str()));
-                }
-                else {
-                    m_watchdog->setFileLogOutputter(NULL);
-                }
-
-                m_fileLogOutputter->setLogFilename(logFilename.c_str());
-#endif
             }
             else {
                 LOG((CLOG_DEBUG "empty command, elevate=%d", cm->elevate()));
@@ -392,8 +375,8 @@ DaemonApp::handleIpcMessage(const Event& e, void*)
             LOG((CLOG_DEBUG "ipc hello, type=%s", type.c_str()));
 
 #if SYSAPI_WIN32
-            String watchdogStatus = m_watchdog->isProcessActive() ? "ok" : "error";
-            LOG((CLOG_INFO "watchdog status: %s", watchdogStatus.c_str()));
+            String watchdogStatus = m_watchdog->isProcessActive() ? "active" : "idle";
+            LOG((CLOG_INFO "service status: %s", watchdogStatus.c_str()));
 #endif
 
             m_ipcLogOutputter->notifyBuffer();

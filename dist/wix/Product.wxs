@@ -13,29 +13,42 @@
 		<Feature Id="ProductFeature" Title="$(var.Name)">
 			<ComponentGroupRef Id="ProductComponents"/>
 			<ComponentGroupRef Id="OpenSSLComponents"/>
+			<ComponentGroupRef Id="ProductQtStylesComponents"/>
 			<ComponentGroupRef Id="ProductQtPluginComponents"/>
-			<MergeRef Id="CRT"/>
-            <?if $(var.Configuration) = "Debug" ?>
-			    <MergeRef Id="DebugCRT"/>
-	        <?endif ?>
 			<ComponentRef Id="RegistryEntries"/>
+      <MergeRef Id="VC_Redist"/>
 		</Feature>
 		<DirectoryRef Id="TARGETDIR">
 			<Component Guid="7CF3564D-1F8E-4D3D-9781-E1EE22D5BD67" Id="RegistryEntries">
-				<RegistryKey ForceCreateOnInstall="yes" ForceDeleteOnUninstall="yes" Key="Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" Root="HKLM">
+				<RegistryKey Id="synergys" ForceCreateOnInstall="yes" ForceDeleteOnUninstall="yes" Key="Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers" Root="HKLM">
 					<RegistryValue Name="[INSTALLFOLDER]synergys.exe" Type="string" Value="~ HIGHDPIAWARE WIN7RTM"/>
+				</RegistryKey>
+
+				<RegistryKey Id="synergyc" Root="HKLM"
+					Key="Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
+					Action="createAndRemoveOnUninstall">
+					<RegistryValue Type="string" Name="[INSTALLFOLDER]synergyc.exe" Value="~ HIGHDPIAWARE WIN7RTM"/>
+				</RegistryKey>
+
+				<RegistryKey Id="synergy" Root="HKLM"
+					Key="Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
+					Action="createAndRemoveOnUninstall">
+					<RegistryValue Type="string" Name="[INSTALLFOLDER]synergy.exe" Value="~ HIGHDPIAWARE WIN7RTM"/>
 				</RegistryKey>
 				<!-- Windows 8 and later only -->
 				<Condition><![CDATA[Installed OR (VersionNT >= 602)]]></Condition>
 			</Component>
+      <?if $(var.Platform) = x64 ?>
+        <Merge Id="VC_Redist" SourceFile="$(env.ProgramFiles)\Microsoft Visual Studio\2019\BuildTools\VC\Redist\MSVC\14.23.27820\MergeModules\Microsoft_VC142_CRT_x64.msm" DiskId="1" Language="0"/>
+      <?else ?>
+        <Merge Id="VC_Redist" SourceFile="$(env.ProgramFiles)\Microsoft Visual Studio\2019\BuildTools\VC\Redist\MSVC\14.23.27820\MergeModules\Microsoft_VC142_CRT_x86.msm" DiskId="1" Language="0"/>
+      <?endif ?>
 		</DirectoryRef>
 		<Icon Id="synergy.ico" SourceFile="$(var.ResPath)/synergy.ico"/>
-		<WixVariable Id="WixUILicenseRtf" Value="$(var.ResPath)\License.rtf"/>
 		<WixVariable Id="WixUIBannerBmp" Value="$(var.ResPath)\banner.bmp"/>
 		<WixVariable Id="WixUIDialogBmp" Value="$(var.ResPath)\dialog.bmp"/>
 		<Property Id="ARPPRODUCTICON" Value="synergy.ico"/>
 		<Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER"/>
-		<Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable"/>
 		<Property Id="LEGACY_UNINSTALL_EXISTS">
 			<RegistrySearch Id="LegacyRegistrySearch" Key="SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Synergy" Name="UninstallString" Root="HKLM" Type="file" Win64="no">
 				<FileSearch Id="LegacyFileSearch" Name="uninstall.exe"/>
@@ -45,6 +58,17 @@
     </Condition>
 		<CustomAction ExeCommand="" FileKey="GuiProgram" Id="StartGui" Return="asyncNoWait"/>
 		<UI>
+		    <UIRef Id="WixUI_InstallDir" />
+		    <Publish Dialog="WelcomeDlg"
+		          Control="Next"
+			  Event="NewDialog"
+			  Value="InstallDirDlg"
+			  Order="2">1</Publish>
+			<Publish Dialog="InstallDirDlg"
+			  Control="Back"
+			  Event="NewDialog"
+			  Value="WelcomeDlg"
+			  Order="2">1</Publish>
 			<Publish Control="Finish" Dialog="ExitDialog" Event="DoAction" Value="StartGui">NOT Installed</Publish>
 		</UI>
 	</Product>
@@ -52,12 +76,9 @@
 		<Directory Id="TARGETDIR" Name="SourceDir">
 			<Directory Id="$(var.ProgramFilesFolder)">
 				<Directory Id="INSTALLFOLDER" Name="$(var.Name)">
-					<Merge DiskId="1" Id="CRT" Language="0" SourceFile="$(var.CRT)"/>
-					<?if $(var.Configuration) = "Debug" ?>
-					    <Merge DiskId="1" Id="DebugCRT" Language="0" SourceFile="$(var.DebugCRT)"/>
-				    <?endif ?>
 					<Directory Id="OpenSSLDir" Name="OpenSSL"/>
 					<Directory Id="PlatformsDir" Name="Platforms"/>
+					<Directory Id="QTStylesDir" Name="styles"/>
 				</Directory>
 			</Directory>
 			<Directory Id="ProgramMenuFolder"/>
@@ -76,9 +97,13 @@
 				</File>
 				<File Source="$(var.BinPath)/synergyc.exe"/>
 				<File Source="$(var.BinPath)/syntool.exe"/>
-				<File Source="$(var.BinPath)/synwinhk.dll"/>
-				<File Source="$(var.OpenSSLBinPath)/libeay32.dll"/>
-				<File Source="$(var.OpenSSLBinPath)/ssleay32.dll"/>
+        <?if $(var.Platform) = x64 ?>
+				  <File Source="$(var.OpenSSLBinPath)/libssl-1_1-x64.dll"/>
+				  <File Source="$(var.OpenSSLBinPath)/libcrypto-1_1-x64.dll"/>
+        <?else ?>
+          <File Source="$(var.OpenSSLBinPath)/libssl-1_1.dll"/>
+          <File Source="$(var.OpenSSLBinPath)/libcrypto-1_1.dll"/>
+        <?endif ?>
 			</Component>
 			<Component Guid="BAC8149B-6287-45BF-9C27-43D71ED40214" Id="Gui">
 				<File Id="GuiProgram" KeyPath="yes" Source="$(var.BinPath)/synergy.exe">
@@ -106,20 +131,30 @@
 				<?endif ?>
 			</Component>
 		</ComponentGroup>
+		<ComponentGroup Directory="QTStylesDir" Id="ProductQtStylesComponents">
+      <Component Guid="96E0F8D8-64FD-4CE8-94D1-F6EDCBBB4995" Id="Styles">
+        <File Id="qwindowsvistastyle" Source="$(var.QtPluginsPath)\styles\qwindowsvistastyle.dll"/>
+      </Component>
+		</ComponentGroup>
 		<ComponentGroup Directory="PlatformsDir" Id="ProductQtPluginComponents">
 			<Component Guid="684EFA14-856B-440E-A5E6-E90E04E36B41" Id="QtPlatformPlugin">
 				<?if $(var.Configuration) = "Debug" ?>
-				<File Source="$(var.QtPlatformPath)\qwindowsd.dll"/>
+				<File Source="$(var.QtPluginsPath)\platforms\qwindowsd.dll"/>
 				<?else ?>
-				<File Source="$(var.QtPlatformPath)\qwindows.dll"/>
+				<File Source="$(var.QtPluginsPath)\platforms\qwindows.dll"/>
 				<?endif ?>
 			</Component>
 		</ComponentGroup>
 		<ComponentGroup Directory="OpenSSLDir" Id="OpenSSLComponents">
 			<Component Guid="92648F77-65A6-4B16-AC59-A1F37BD341B1" Id="OpenSSL">
-				<File Id="OpenSSLDll1" Source="$(var.OpenSSLBinPath)/libeay32.dll"/>
-				<File Id="OpenSSLDll2" Source="$(var.OpenSSLBinPath)/ssleay32.dll"/>
-				<File Source="$(var.OpenSSLBinPath)/openssl.exe"/>
+        <?if $(var.Platform) = x64 ?>
+          <File Id="OpenSSLDll1" Source="$(var.OpenSSLBinPath)/libcrypto-1_1-x64.dll"/>
+          <File Id="OpenSSLDll2" Source="$(var.OpenSSLBinPath)/libssl-1_1-x64.dll"/>
+        <?else ?>
+          <File Id="OpenSSLDll1" Source="$(var.OpenSSLBinPath)/libcrypto-1_1.dll"/>
+          <File Id="OpenSSLDll2" Source="$(var.OpenSSLBinPath)/libssl-1_1.dll"/>
+        <?endif ?>
+        <File Source="$(var.OpenSSLBinPath)/openssl.exe"/>
 				<File Source="$(var.ResPath)/openssl/synergy.conf"/>
 			</Component>
 		</ComponentGroup>

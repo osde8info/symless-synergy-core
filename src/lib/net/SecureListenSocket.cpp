@@ -32,18 +32,10 @@ static const char s_certificateFilename[] = { "Synergy.pem" };
 
 SecureListenSocket::SecureListenSocket(
         IEventQueue* events,
-        SocketMultiplexer* socketMultiplexer) :
-    TCPListenSocket(events, socketMultiplexer)
+        SocketMultiplexer* socketMultiplexer,
+        IArchNetwork::EAddressFamily family) :
+    TCPListenSocket(events, socketMultiplexer, family)
 {
-}
-
-SecureListenSocket::~SecureListenSocket()
-{
-    SecureSocketSet::iterator it;
-    for (it = m_secureSocketSet.begin(); it != m_secureSocketSet.end(); it++) {
-        delete *it;
-    }
-    m_secureSocketSet.clear();
 }
 
 IDataSocket*
@@ -73,8 +65,6 @@ SecureListenSocket::accept()
         }
 
         socket->secureAccept();
-
-        m_secureSocketSet.insert(socket);
 
         return dynamic_cast<IDataSocket*>(socket);
     }

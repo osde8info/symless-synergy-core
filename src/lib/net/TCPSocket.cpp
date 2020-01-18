@@ -37,7 +37,7 @@
 // TCPSocket
 //
 
-TCPSocket::TCPSocket(IEventQueue* events, SocketMultiplexer* socketMultiplexer) :
+TCPSocket::TCPSocket(IEventQueue* events, SocketMultiplexer* socketMultiplexer, IArchNetwork::EAddressFamily family) :
     IDataSocket(events),
     m_events(events),
     m_mutex(),
@@ -45,11 +45,13 @@ TCPSocket::TCPSocket(IEventQueue* events, SocketMultiplexer* socketMultiplexer) 
     m_socketMultiplexer(socketMultiplexer)
 {
     try {
-        m_socket = ARCH->newSocket(IArchNetwork::kINET, IArchNetwork::kSTREAM);
+        m_socket = ARCH->newSocket(family, IArchNetwork::kSTREAM);
     }
     catch (XArchNetwork& e) {
         throw XSocketCreate(e.what());
     }
+
+    LOG((CLOG_DEBUG "Opening new socket: %08X", m_socket));
 
     init();
 }
@@ -63,6 +65,8 @@ TCPSocket::TCPSocket(IEventQueue* events, SocketMultiplexer* socketMultiplexer, 
     m_socketMultiplexer(socketMultiplexer)
 {
     assert(m_socket != NULL);
+
+    LOG((CLOG_DEBUG "Opening new socket: %08X", m_socket));
 
     // socket starts in connected state
     init();
@@ -97,6 +101,8 @@ TCPSocket::bind(const NetworkAddress& addr)
 void
 TCPSocket::close()
 {
+    LOG((CLOG_DEBUG "Closing socket: %08X", m_socket));
+
     // remove ourself from the multiplexer
     setJob(NULL);
 
@@ -337,7 +343,7 @@ TCPSocket::doRead()
         
         // slurp up as much as possible
         do {
-            m_inputBuffer.write(buffer, bytesRead);
+            m_inputBuffer.write(buffer, static_cast<UInt32>(bytesRead));
 
             bytesRead = ARCH->readSocket(m_socket, buffer, sizeof(buffer));
         } while (bytesRead > 0);

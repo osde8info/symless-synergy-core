@@ -37,7 +37,8 @@ public:
     MSWindowsWatchdog(
         bool autoDetectCommand,
         IpcServer& ipcServer,
-        IpcLogOutputter& ipcLogOutputter);
+        IpcLogOutputter& ipcLogOutputter,
+		bool foreground);
     virtual ~MSWindowsWatchdog();
 
     void                startAsync();
@@ -55,10 +56,12 @@ private:
     HANDLE                duplicateProcessToken(HANDLE process, LPSECURITY_ATTRIBUTES security);
     HANDLE                getUserToken(LPSECURITY_ATTRIBUTES security);
     void                startProcess();
-    BOOL                doStartProcess(String& command, HANDLE userToken, LPSECURITY_ATTRIBUTES sa);
+	BOOL                startProcessAsUser(String& command, HANDLE userToken, LPSECURITY_ATTRIBUTES sa);
+	BOOL                startProcessInForeground(String& command);
     void                sendSas();
     void                getActiveDesktop(LPSECURITY_ATTRIBUTES security);
     void                testOutput(String buffer);
+	void				setStartupInfo(STARTUPINFO& si);
 
 private:
     Thread*                m_thread;
@@ -81,6 +84,7 @@ private:
     ArchMutex            m_mutex;
     ArchCond            m_condVar;
     bool                m_ready;
+	bool				m_foreground;
 };
 
 //! Relauncher error

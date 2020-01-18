@@ -46,7 +46,12 @@ static const char*        g_priority[] = {
 // number of priorities
 static const int g_numPriority = (int)(sizeof(g_priority) / sizeof(g_priority[0]));
 
-// the default priority
+// if NDEBUG (not debug) is not specified, i.e. you're building in debug,
+// then set default log level to DEBUG, otherwise the max level is INFO.
+//
+// GOTCHA: if `-DCMAKE_BUILD_TYPE=Debug` isn't set when configuring cmake
+// for visual studio, then NDEBUG will be set (even if your VS solution
+// config is Debug).
 #ifndef NDEBUG
 static const int        g_defaultMaxPriority = kDEBUG;
 #else
@@ -181,11 +186,11 @@ Log::print(const char* file, int line, const char* fmt, ...)
 
         // square brackets, spaces, comma and null terminator take about 10
         int size = 10;
-        size += strlen(timestamp);
-        size += strlen(g_priority[priority]);
-        size += strlen(buffer);
+        size += static_cast<int>(strlen(timestamp));
+        size += static_cast<int>(strlen(g_priority[priority]));
+        size += static_cast<int>(strlen(buffer));
 #ifndef NDEBUG
-        size += strlen(file);
+        size += static_cast<int>(strlen(file));
         // assume there is no file contains over 100k lines of code
         size += 6;
 #endif

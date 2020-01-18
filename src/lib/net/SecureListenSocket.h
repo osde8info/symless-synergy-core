@@ -27,15 +27,10 @@ class IDataSocket;
 class SecureListenSocket : public TCPListenSocket{
 public:
     SecureListenSocket(IEventQueue* events,
-        SocketMultiplexer* socketMultiplexer);
-    ~SecureListenSocket();
+        SocketMultiplexer* socketMultiplexer, IArchNetwork::EAddressFamily family);
+
 
     // IListenSocket overrides
     virtual IDataSocket*
                         accept();
-
-private:
-    typedef std::set<IDataSocket*> SecureSocketSet;
-
-    SecureSocketSet        m_secureSocketSet;
 };
